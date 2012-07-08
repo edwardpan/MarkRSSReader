@@ -13,6 +13,7 @@ namespace MarkRSSReader.Data {
         public string Author { get; set; }
         public DateTime PubDate { get; set; }
         public Uri Link { get; set; }
+        public Boolean IsRead { get; set; }
         private string _content = string.Empty;
         public string Content {
             get { return this._content; }

@@ -42,16 +42,20 @@ namespace MarkRSSReader.Data
         public ObservableCollection<FeedGroup> AllGroups {
             get { return this._allGroups; }
         }
-        private StorageFile file = null;
-        private XmlDocument doc = null;
+        private StorageFile feedsFile = null;
+        private XmlDocument feedsDoc = null;
 
         private FeedDataSource() {}
         public async Task init() {
-            if (file == null) {
+            var loadSettings = new Windows.Data.Xml.Dom.XmlLoadSettings();
+            loadSettings.ProhibitDtd = true;
+            loadSettings.ResolveExternals = false;
+
+            if (feedsFile == null) {
                 // 获取当前应用的配置文件夹（支持可同步的）
                 StorageFolder folder = Windows.Storage.ApplicationData.Current.RoamingFolder;
                 // 打开RSS源XML配置文件，如果不存在则创建
-                file = await folder.CreateFileAsync("data.xml", CreationCollisionOption.OpenIfExists);
+                feedsFile = await folder.CreateFileAsync("feeds.xml", CreationCollisionOption.OpenIfExists);
 
                 // 如果应用为第一次运行，则复制基础XML配置文件
                 ApplicationDataContainer roamingSettings = Windows.Storage.ApplicationData.Current.RoamingSettings;
@@ -60,19 +64,19 @@ namespace MarkRSSReader.Data
                     StorageFolder templateFolder = await
                         Windows.ApplicationModel.Package.Current.InstalledLocation.GetFolderAsync("data");
                     StorageFile templateFile = await templateFolder.CreateFileAsync(
-                        "data.xml", CreationCollisionOption.OpenIfExists);
-                    await templateFile.CopyAndReplaceAsync(file);
+                        "feeds.xml", CreationCollisionOption.OpenIfExists);
+                    await templateFile.CopyAndReplaceAsync(feedsFile);
                     roamingSettings.Values["notFirstRun"] = true;
                 }
             }
-
-            if (doc == null) {
+            if (feedsDoc == null) {
                 // 读取XML配置文件
-                var loadSettings = new Windows.Data.Xml.Dom.XmlLoadSettings();
-                loadSettings.ProhibitDtd = true;
-                loadSettings.ResolveExternals = false;
-                doc = await XmlDocument.LoadFromFileAsync(file, loadSettings);
+                feedsDoc = await XmlDocument.LoadFromFileAsync(feedsFile, loadSettings);
             }
+        }
+
+        public async Task saveCache() {
+            await feedsDoc.SaveToFileAsync(feedsFile);
         }
 
         //public static IEnumerable<FeedGroup> GetGroups(string uniqueId)
@@ -108,18 +112,23 @@ namespace MarkRSSReader.Data
         {
             AllGroups.Clear();
 
-            IXmlNode root = doc.SelectSingleNode("groups");
+            IXmlNode root = feedsDoc.SelectSingleNode("groups");
             XmlNodeList groupList = root.SelectNodes("group");
-            foreach (IXmlNode node in groupList) {
+            IOrderedEnumerable<IXmlNode> groupOrderList = groupList.OrderBy(g => 
+                int.Parse(g.SelectSingleNode("order").InnerText) );
+            foreach (IXmlNode node in groupOrderList) {
                 var group = new FeedGroup();
                 group.UniqueId = node.SelectSingleNode("uniqueId").InnerText;
                 group.Title = node.SelectSingleNode("title").InnerText;
                 group.Description = node.SelectSingleNode("description").InnerText;
+                group.Order = int.Parse(node.SelectSingleNode("order").InnerText);
 
                 IXmlNode feeds = node.SelectSingleNode("feeds");
                 if (feeds != null) {
                     XmlNodeList feedList = feeds.SelectNodes("feed");
-                    foreach (IXmlNode feedXml in feedList) {
+                    IOrderedEnumerable<IXmlNode> feedOrderList = feedList.OrderBy(f =>
+                        int.Parse(f.SelectSingleNode("order").InnerText));
+                    foreach (IXmlNode feedXml in feedOrderList) {
                         Feed feed = new Feed();
                         // 编号
                         feed.UniqueId = feedXml.SelectSingleNode("uniqueId").InnerText;
@@ -131,12 +140,14 @@ namespace MarkRSSReader.Data
                         // 分组
                         feed.Group = group;
                         // 颜色
-                        string bgcolor = Backgrounds.Instance.Color;
-                        var bgcolorXml = feedXml.SelectSingleNode("bgcolor");
-                        if (bgcolorXml != null) {
-                            bgcolor = feedXml.SelectSingleNode("bgcolor").InnerText;
+                        IXmlNode bgcolorXml = feedXml.SelectSingleNode("bgcolor");
+                        if (bgcolorXml == null) {
+                            bgcolorXml = feedsDoc.CreateElement("bgcolor");
+                            bgcolorXml.InnerText = Backgrounds.Instance.Color;
+                            //feedXml.AppendChild(bgcolorXml);
                         }
-                        feed.Background = bgcolor;
+                        feed.Background = bgcolorXml.InnerText;
+                        feed.Order = int.Parse(feedXml.SelectSingleNode("order").InnerText);
                         
                         group.Feeds.Add(feed);
                     }
@@ -156,14 +167,20 @@ namespace MarkRSSReader.Data
                 // This code is executed after RetrieveFeedAsync returns the SyndicationFeed.
                 // Process it and copy the data we want into our FeedData and FeedItem classes.
 
-                loadFeed.Title = synFeed.Title.Text;
-                if (synFeed.Subtitle.Text != null) {
+                if (loadFeed.Title.Trim().Length == 0) {
+                    loadFeed.Title = synFeed.Title.Text;
+                }
+                if (synFeed.Subtitle.Text != null && synFeed.Subtitle.Text.Trim().Length != 0) {
                     loadFeed.Subtitle = synFeed.Subtitle.Text;
+                }
+                if (synFeed.Items.Count != 0) {
+                    loadFeed.Description = synFeed.Items[0].Title.Text;
                 }
                 // Use the date of the latest post as the last updated date.
                 loadFeed.PubDate = synFeed.Items[0].PublishedDate.DateTime;
 
-                loadFeed.Items.Clear();
+                // 加载Feed中的文章，并保存到DB中
+                List<FeedItem> feedItemList = new List<FeedItem>();
                 foreach (SyndicationItem item in synFeed.Items) {
                     FeedItem feedItem = new FeedItem();
                     feedItem.Title = item.Title.Text;
@@ -178,8 +195,14 @@ namespace MarkRSSReader.Data
                         feedItem.Link = item.Links[0].Uri;
                     }
                     feedItem.Feed = loadFeed;
-                    loadFeed.Items.Add(feedItem);
+                    feedItemList.Add(feedItem);
                 }
+                // 保存到DB
+                FeedItemDatabase.getInstance().saveFeedItems(loadFeed, feedItemList);
+                // 读取DB
+                FeedItemDatabase.getInstance().loadFeedItems(loadFeed);
+                //// 保存到数据文件
+                //await FeedItemDatabase.getInstance().saveCache();
             } catch (Exception) {
                 return;
             }
@@ -187,10 +210,10 @@ namespace MarkRSSReader.Data
 
         public async Task<Feed> saveFeed(Feed feed) {
             // 查找到要添加的组
-            IXmlNode group = doc.SelectSingleNode("/groups/group[uniqueId='" + feed.Group.UniqueId+ "']");
+            IXmlNode group = feedsDoc.SelectSingleNode("/groups/group[uniqueId='" + feed.Group.UniqueId + "']");
             IXmlNode feedsXml = group.SelectSingleNode("feeds");
             if (feedsXml == null) {
-                feedsXml = doc.CreateElement("feeds");
+                feedsXml = feedsDoc.CreateElement("feeds");
                 group.AppendChild(feedsXml);
             }
 
@@ -202,14 +225,21 @@ namespace MarkRSSReader.Data
                 feed.Group.Feeds.Add(feed);
             } else {// 对已有的编辑
                 // 找到旧的Feed和分组信息
-                IXmlNode oldFeedXml = doc.SelectSingleNode("//feed[uniqueId='" + feed.UniqueId + "']");
+                IXmlNode oldFeedXml = feedsDoc.SelectSingleNode("//feed[uniqueId='" + feed.UniqueId + "']");
                 IXmlNode oldGroupXml = oldFeedXml.ParentNode.ParentNode;
+
+                string oldFeedUri = oldFeedXml.SelectSingleNode("uri").InnerText;
 
                 if (feed.Group.UniqueId.Equals(
                     oldGroupXml.SelectSingleNode("uniqueId").InnerText)) {// 分组没有改变
 
                     oldFeedXml.SelectSingleNode("title").InnerText = feed.Title;
                     oldFeedXml.SelectSingleNode("uri").InnerText = feed.Source.ToString();
+                    // 当URI变更后，清除原来的数据
+                    if (!oldFeedUri.Equals(feed.Source.ToString())) {
+                        FeedItemDatabase.getInstance().clearOldFeedItems(feed);
+                    }
+
                     // 重新加Feed数据
                     await initFeedAsync(feed);
                 } else {// 分组改变
@@ -225,47 +255,46 @@ namespace MarkRSSReader.Data
                 }
             }
 
-            // 保存XML数据文件
-            await doc.SaveToFileAsync(file);
-
+            //// 保存XML数据文件
+            //await feedsDoc.SaveToFileAsync(feedsFile);
             return feed;
         }
 
         // 创建用于描述Feed信息的XML节点
         private IXmlNode createFeedXml(Feed feed) {
             // 创建源XML节点
-            XmlElement feedXml = doc.CreateElement("feed");
+            XmlElement feedXml = feedsDoc.CreateElement("feed");
             // 创建源唯一编号节点
-            XmlElement uniqueIdXml = doc.CreateElement("uniqueId");
+            XmlElement uniqueIdXml = feedsDoc.CreateElement("uniqueId");
             uniqueIdXml.InnerText = feed.UniqueId;
             feedXml.AppendChild(uniqueIdXml);
             // 创建标题节点
-            XmlElement titleXml = doc.CreateElement("title");
+            XmlElement titleXml = feedsDoc.CreateElement("title");
             titleXml.InnerText = feed.Title;
             feedXml.AppendChild(titleXml);
             // 创建地址节点
-            XmlElement uriXml = doc.CreateElement("uri");
+            XmlElement uriXml = feedsDoc.CreateElement("uri");
             uriXml.InnerText = feed.Source.ToString();
             feedXml.AppendChild(uriXml);
             // 创建背景色节点
-            XmlElement bgcolorXml = doc.CreateElement("bgcolor");
+            XmlElement bgcolorXml = feedsDoc.CreateElement("bgcolor");
             bgcolorXml.InnerText = feed.Background;
             feedXml.AppendChild(bgcolorXml);
             return feedXml;
         }
 
-        public async Task delFeed(Feed feed) {
+        public void delFeed(Feed feed) {
             // 查找到要删除的源
-            IXmlNode feedXml = doc.SelectSingleNode("//feed[uniqueId='" + feed.UniqueId + "']");
+            IXmlNode feedXml = feedsDoc.SelectSingleNode("//feed[uniqueId='" + feed.UniqueId + "']");
             IXmlNode feedsXml = feedXml.ParentNode;
             feedsXml.RemoveChild(feedXml);
 
-            // 保存XML数据文件
-            await doc.SaveToFileAsync(file);
+            //// 保存XML数据文件
+            //await feedsDoc.SaveToFileAsync(feedsFile);
         }
 
-        public async Task<FeedGroup> saveFeedGroup(FeedGroup group) {
-            IXmlNode groupsXml = doc.SelectSingleNode("groups");
+        public FeedGroup saveFeedGroup(FeedGroup group) {
+            IXmlNode groupsXml = feedsDoc.SelectSingleNode("groups");
 
             if (group.UniqueId == null || "".Equals(group.UniqueId)) {// 新创建的
                 group.UniqueId = Guid.NewGuid().ToString();
@@ -275,7 +304,7 @@ namespace MarkRSSReader.Data
                 AllGroups.Add(group);
             } else {// 对已有的编辑
                 // 找到旧的FeedGroup信息
-                IXmlNode oldGroupXml = doc.SelectSingleNode("//group[uniqueId='" + group.UniqueId + "']");
+                IXmlNode oldGroupXml = feedsDoc.SelectSingleNode("//group[uniqueId='" + group.UniqueId + "']");
 
                 if (group.UniqueId.Equals(
                     oldGroupXml.SelectSingleNode("uniqueId").InnerText)) {// 分组没有改变
@@ -290,29 +319,29 @@ namespace MarkRSSReader.Data
                     AllGroups.Add(group);
                 }
             }
-            // 保存XML数据文件
-            await doc.SaveToFileAsync(file);
+            //// 保存XML数据文件
+            //await feedsDoc.SaveToFileAsync(feedsFile);
             return group;
         }
 
         // 创建用于描述FeedGroup信息的XML节点
         private IXmlNode createFeedGroupXml(FeedGroup group) {
             // 创建分组XML节点
-            XmlElement groupXml = doc.CreateElement("group");
+            XmlElement groupXml = feedsDoc.CreateElement("group");
             // 创建唯一编号节点
-            XmlElement uniqueIdXml = doc.CreateElement("uniqueId");
+            XmlElement uniqueIdXml = feedsDoc.CreateElement("uniqueId");
             uniqueIdXml.InnerText = group.UniqueId;
             groupXml.AppendChild(uniqueIdXml);
             // 创建标题节点
-            XmlElement titleXml = doc.CreateElement("title");
+            XmlElement titleXml = feedsDoc.CreateElement("title");
             titleXml.InnerText = group.Title;
             groupXml.AppendChild(titleXml);
             // 创建描述节点
-            XmlElement desXml = doc.CreateElement("description");
+            XmlElement desXml = feedsDoc.CreateElement("description");
             desXml.InnerText = group.Description;
             groupXml.AppendChild(desXml);
             // 创建Feed源集合节点
-            XmlElement feedsXml = doc.CreateElement("feeds");
+            XmlElement feedsXml = feedsDoc.CreateElement("feeds");
             groupXml.AppendChild(feedsXml);
 
             return groupXml;
@@ -324,10 +353,10 @@ namespace MarkRSSReader.Data
         /// <param name="doc"></param>
         /// <param name="group"></param>
         private void deleteFeedGroup(FeedGroup group) {
-            IXmlNode groupsXml = doc.SelectSingleNode("groups");
+            IXmlNode groupsXml = feedsDoc.SelectSingleNode("groups");
 
             // 找到要删除的旧的FeedGroup信息
-            IXmlNode oldGroupXml = doc.SelectSingleNode("//group[uniqueId='" + group.UniqueId + "']");
+            IXmlNode oldGroupXml = feedsDoc.SelectSingleNode("//group[uniqueId='" + group.UniqueId + "']");
 
             // 移动所有分组中的Feed到未分组中，包括XML和对象
             IXmlNode noGroupXml = groupsXml.SelectSingleNode("//group[title='未分组']");

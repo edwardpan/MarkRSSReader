@@ -47,6 +47,12 @@ namespace MarkRSSReader.Data {
             set { this.SetProperty(ref this._description, value); }
         }
 
+        private int _order = 0;
+        public int Order {
+            get { return this._order; }
+            set { this.SetProperty(ref this._order, value); }
+        }
+
         private ImageSource _image = null;
         private String _imagePath = null;
         public ImageSource Image {

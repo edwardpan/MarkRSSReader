@@ -89,6 +89,11 @@ namespace MarkRSSReader
         /// <param name="e">有关挂起的请求的详细信息。</param>
         private async void OnSuspending(object sender, SuspendingEventArgs e)
         {
+            // 保存源配置信息
+            await FeedDataSource.getInstance().saveCache();
+            // 保存源中已下载的文章
+            await FeedItemDatabase.getInstance().saveCache();
+
             var deferral = e.SuspendingOperation.GetDeferral();
             await SuspensionManager.SaveAsync();
             deferral.Complete();

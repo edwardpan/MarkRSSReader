@@ -21,7 +21,7 @@
         <CollectionViewSource
             x:Name="groupedFeedsViewSource"
             Source="{Binding Groups}"
-            IsSourceGrouped="true"
+            IsSourceGrouped="True"
             ItemsPath="Feeds"/>
     </Page.Resources>
 
@@ -86,15 +86,15 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Grid HorizontalAlignment="Left" Width="250" Height="120" Loaded="ItemView_Loaded" Background="{Binding Background}">
-                        <ProgressRing Width="50" Height="50" IsActive="True" Visibility="Visible" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         <StackPanel VerticalAlignment="Top" Margin="15,15,15,15">
                             <TextBlock Text="{Binding Title}" Foreground="{StaticResource ListViewItemOverlayForegroundThemeBrush}" Style="{StaticResource TitleTextStyle}" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource ListViewItemOverlaySecondaryForegroundThemeBrush}" Style="{StaticResource CaptionTextStyle}" TextWrapping="NoWrap"/>
+                            <TextBlock x:Name="subTitle" Text="{Binding Subtitle}" VerticalAlignment="Bottom" Foreground="{StaticResource ListViewItemOverlayForegroundThemeBrush}" Style="{StaticResource CaptionTextStyle}" TextWrapping="NoWrap" Margin="15,0,15,0"/>
+                            <TextBlock x:Name="description" Text="{Binding Description}" VerticalAlignment="Bottom" Foreground="{StaticResource ListViewItemOverlayForegroundThemeBrush}" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Height="50" Margin="15,0,15,20"/>
                         </StackPanel>
-                        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,5,5">
-                            <TextBlock Text="3" Style="{StaticResource NewItemNumberStyle}"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,5,5">
+                            <ProgressRing x:Name="prog" Width="15" Height="15" Foreground="White" IsActive="True" Visibility="Visible" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="newNum" Style="{StaticResource NewItemNumberStyle}"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding Items[0].Title}" VerticalAlignment="Bottom" Foreground="{StaticResource ListViewItemOverlayForegroundThemeBrush}" Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Margin="15,0,15,20"/>
                     </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

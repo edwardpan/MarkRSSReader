@@ -52,6 +52,7 @@ namespace MarkRSSReader
                 PositionImage();
             }
             // 初始化
+            await FeedItemDatabase.getInstance().init();
             await FeedDataSource.getInstance().init();
             Frame.Navigate(typeof(GroupedFeedsPage), this);
         }

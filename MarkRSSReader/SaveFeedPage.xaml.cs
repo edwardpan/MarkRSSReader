@@ -34,7 +34,7 @@ namespace MarkRSSReader {
             if (editingFeed == null) {
                 saveFeedTitle.Text = "";
                 saveFeedUri.Text = "";
-                saveFeedGroup.SelectedItem = null;
+                saveFeedGroup.SelectedIndex = 0;
             } else {
                 saveFeedTitle.Text = editingFeed.Title;
                 saveFeedUri.Text = editingFeed.Source.ToString();
@@ -63,7 +63,7 @@ namespace MarkRSSReader {
         /// </summary>
         /// <param name="send"></param>
         /// <param name="e"></param>
-        async void SaveFeedGroupOKBtn_Click(object send, RoutedEventArgs e) {
+        void SaveFeedGroupOKBtn_Click(object send, RoutedEventArgs e) {
             string title = saveFeedGroupTitle.Text;
 
             if (title == null || title.Trim(null).Length == 0) {
@@ -76,7 +76,7 @@ namespace MarkRSSReader {
             }
             group.Title = title;
             group.Description = "";
-            await FeedDataSource.getInstance().saveFeedGroup(group);
+            FeedDataSource.getInstance().saveFeedGroup(group);
 
             // 刷新界面
             addFeedGroupPopOutSb.Begin();
@@ -104,7 +104,7 @@ namespace MarkRSSReader {
 
             FeedGroup group = (FeedGroup)saveFeedGroup.SelectedItem;
             if (title == null || title.Trim(null).Length == 0) {
-                return;
+                title = "";
             }
             if (uri == null || uri.Trim(null).Length == 0) {
                 return;

@@ -107,6 +107,7 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Data\FeedItemDatabase.cs" />
     <Compile Include="ExtendedSplash.xaml.cs">
       <DependentUpon>ExtendedSplash.xaml</DependentUpon>
     </Compile>
@@ -144,6 +145,9 @@
       <SubType>Designer</SubType>
     </AppxManifest>
     <None Include="Common\ReadMe.txt" />
+    <Content Include="Data\feeditems_database.xml">
+      <SubType>Designer</SubType>
+    </Content>
     <None Include="MarkRSSReader_TemporaryKey.pfx" />
     <None Include="packages.config" />
   </ItemGroup>
@@ -163,10 +167,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Content Include="Data\data.xml">
+    <Content Include="Data\feeds.xml">
       <SubType>Designer</SubType>
     </Content>
-    <Content Include="Data\副本 data.xml" />
+    <Content Include="Data\副本 feeds.xml" />
     <Page Include="FeedItemPage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

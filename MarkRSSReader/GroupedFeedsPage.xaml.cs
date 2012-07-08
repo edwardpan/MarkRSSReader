@@ -19,15 +19,12 @@ using Windows.UI.Xaml.Navigation;
 
 // “分组项页”项模板在 http://go.microsoft.com/fwlink/?LinkId=234231 上提供
 
-namespace MarkRSSReader
-{
+namespace MarkRSSReader {
     /// <summary>
     /// 显示分组的项集合的页。
     /// </summary>
-    public sealed partial class GroupedFeedsPage : MarkRSSReader.Common.LayoutAwarePage
-    {
-        public GroupedFeedsPage()
-        {
+    public sealed partial class GroupedFeedsPage : MarkRSSReader.Common.LayoutAwarePage {
+        public GroupedFeedsPage() {
             this.InitializeComponent();
         }
 
@@ -40,8 +37,7 @@ namespace MarkRSSReader
         /// </param>
         /// <param name="pageState">A dictionary of state preserved by this page during an earlier
         /// session.  This will be null the first time a page is visited.</param>
-        protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
-        {
+        protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState) {
             // TODO: Create an appropriate data model for your problem domain to replace the sample data
             var feedDataGroups = FeedDataSource.getInstance().AllGroups;
             this.DefaultViewModel["Groups"] = feedDataGroups;
@@ -77,8 +73,7 @@ namespace MarkRSSReader
         /// <param name="sender">显示所单击项的 GridView (在应用程序处于对齐状态时
         /// 为 ListView)。</param>
         /// <param name="e">描述所单击项的事件数据。</param>
-        void ItemView_ItemClick(object sender, ItemClickEventArgs e)
-        {
+        void ItemView_ItemClick(object sender, ItemClickEventArgs e) {
             // 导航至相应的目标页，并
             // 通过将所需信息作为导航参数传入来配置新页
             var feed = (Feed)e.ClickedItem;
@@ -108,7 +103,7 @@ namespace MarkRSSReader
         void AddFeedBtn_Click(object sender, RoutedEventArgs e) {
             initSaveFeedView();
         }
-        
+
         /// <summary>
         /// 编辑Feed，显示编辑界面
         /// </summary>
@@ -120,7 +115,7 @@ namespace MarkRSSReader
 
         private Popup saveFeedPagePop = null;
 
-        private void initSaveFeedView(bool isEdit=false) {
+        private void initSaveFeedView(bool isEdit = false) {
             if (saveFeedPagePop == null) {
                 // 初始化弹出界面
                 SaveFeedPage saveFeedPage = new SaveFeedPage();
@@ -158,16 +153,16 @@ namespace MarkRSSReader
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        async void DelFeedBtn_Click(object sender, RoutedEventArgs e) {
+        void DelFeedBtn_Click(object sender, RoutedEventArgs e) {
             while (itemGridView.SelectedItems.Count > 0) {
-                Feed f = (Feed) itemGridView.SelectedItems.First();
+                Feed f = (Feed)itemGridView.SelectedItems.First();
                 var matches = FeedDataSource.getInstance().AllGroups.SelectMany((group) => group.Feeds).
                         Where((feed) => feed.UniqueId.Equals(f.UniqueId));
                 if (matches.Count() == 1) {
                     var feed = matches.First();
                     var group = feed.Group;
                     group.Feeds.Remove(feed);
-                    await FeedDataSource.getInstance().delFeed(feed);
+                    FeedDataSource.getInstance().delFeed(feed);
                 }
             }
         }
@@ -202,7 +197,7 @@ namespace MarkRSSReader
         /// <param name="sender"></param>
         /// <param name="e"></param>
         void ItemView_ItemSelect(object sender, SelectionChangedEventArgs e) {
-            GridView gridView = (GridView) sender;
+            GridView gridView = (GridView)sender;
             if (gridView.SelectedItems.Count > 0) {
                 if (gridView.SelectedItems.Count == 1) {
                     gridEditFeedBtn.Visibility = Visibility.Visible;
@@ -234,30 +229,26 @@ namespace MarkRSSReader
         /// </summary>
         /// <returns></returns>
         private async Task loadFeedGrid(Grid feedGrid) {
-            var matches = feedGrid.Children.Where((el) => el.GetType().Equals(typeof(ProgressRing)));
-            ProgressRing progRing = null;
-            if (matches.Count() == 1) {
-                progRing = (ProgressRing)matches.First();
-            }
+            ProgressRing progRing = (ProgressRing)feedGrid.FindName("prog");
+            TextBlock subTitle = (TextBlock)feedGrid.FindName("subTitle");
+            TextBlock description = (TextBlock)feedGrid.FindName("description");
+            TextBlock newNumText = (TextBlock)feedGrid.FindName("newNum");
 
-            matches = feedGrid.Children.Where((el) => el.GetType().Equals(typeof(TextBlock)));
-            TextBlock topNews = null;
-            if (matches.Count() == 1) {
-                topNews = (TextBlock)matches.First();
-            }
-
-            if (progRing != null && topNews != null) {
-                progRing.Visibility = Visibility.Visible;
-                topNews.Visibility = Visibility.Collapsed;
-            }
+            progRing.Visibility = Visibility.Visible;
+            subTitle.Visibility = Visibility.Collapsed;
+            description.Visibility = Visibility.Collapsed;
 
             var feed = (Feed)feedGrid.DataContext;
             await FeedDataSource.getInstance().initFeedAsync(feed);
 
-            if (progRing != null && topNews != null) {
-                progRing.Visibility = Visibility.Collapsed;
-                topNews.Visibility = Visibility.Visible;
-            }
+            Binding b = new Binding();
+            b.Mode = BindingMode.TwoWay;
+            b.Source = feed.Items.Count((i) => !i.IsRead);
+            newNumText.SetBinding(TextBlock.TextProperty, b);
+
+            progRing.Visibility = Visibility.Collapsed;
+            subTitle.Visibility = Visibility.Visible;
+            description.Visibility = Visibility.Visible;
         }
     }
 }
