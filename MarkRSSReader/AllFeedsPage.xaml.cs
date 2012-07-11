@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -23,9 +24,36 @@ namespace MarkRSSReader {
     /// <summary>
     /// 显示分组的项集合的页。
     /// </summary>
-    public sealed partial class GroupedFeedsPage : MarkRSSReader.Common.LayoutAwarePage {
-        public GroupedFeedsPage() {
+    public sealed partial class AllFeedsPage : MarkRSSReader.Common.LayoutAwarePage {
+        public AllFeedsPage() {
             this.InitializeComponent();
+
+            InputPane input = InputPane.GetForCurrentView();
+            input.Showing += input_Showing;
+            input.Hiding += input_Hiding;
+        }
+
+        private double inputPaneHeight = 0;
+
+        void input_Showing(InputPane sender, InputPaneVisibilityEventArgs e) {
+            inputPaneHeight = Window.Current.Content.RenderSize.Height -
+                (AppBar1.IsOpen ? AppBar1.ActualHeight : 0) - saveFeedPage.ActualHeight - e.OccludedRect.Height;
+            //Storyboard sb = new Storyboard();
+            //DoubleAnimation an = new DoubleAnimation();
+            //an.Duration = TimeSpan.FromMilliseconds(733);
+            //an.From = saveFeedPagePop.VerticalOffset;
+            //an.To = inputPaneHeight;
+            //sb.Children.Add(an);
+            //Storyboard.SetTarget(an, this.saveFeedPagePop);
+            //Storyboard.SetTargetProperty(an, "VerticalOffset");
+            //sb.Begin();
+            saveFeedPagePop.VerticalOffset = inputPaneHeight;
+        }
+
+        void input_Hiding(InputPane sender, InputPaneVisibilityEventArgs e) {
+            inputPaneHeight = Window.Current.Content.RenderSize.Height -
+                (AppBar1.IsOpen ? AppBar1.ActualHeight : 0) - saveFeedPage.ActualHeight;
+            saveFeedPagePop.VerticalOffset = inputPaneHeight;
         }
 
         /// <summary>
@@ -39,8 +67,8 @@ namespace MarkRSSReader {
         /// session.  This will be null the first time a page is visited.</param>
         protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState) {
             // TODO: Create an appropriate data model for your problem domain to replace the sample data
-            var feedDataGroups = FeedDataSource.getInstance().AllGroups;
-            this.DefaultViewModel["Groups"] = feedDataGroups;
+            var feedDatas = FeedDataSource.getInstance().AllFeeds;
+            this.DefaultViewModel["Feeds"] = feedDatas;
             initAll();
         }
 
@@ -49,23 +77,8 @@ namespace MarkRSSReader {
         /// </summary>
         void initAll() {
             _preloadFeedGrid.Clear();
-            FeedDataSource.getInstance().initFeedGroup();
+            FeedDataSource.getInstance().initFeedInfo();
         }
-
-        ///// <summary>
-        ///// 在单击组标题时进行调用。
-        ///// </summary>
-        ///// <param name="sender">用作选定组的组标题的 Button。</param>
-        ///// <param name="e">描述如何启动单击的事件数据。</param>
-        //void Header_Click(object sender, RoutedEventArgs e)
-        //{
-        //    // 确定 Button 实例表示的组
-        //    var group = (sender as FrameworkElement).DataContext;
-
-        //    // 导航至相应的目标页，并
-        //    // 通过将所需信息作为导航参数传入来配置新页
-        //    this.Frame.Navigate(typeof(GroupPage), (FeedGroup)group);
-        //}
 
         /// <summary>
         /// 在单击组内的项时进行调用。
@@ -93,6 +106,7 @@ namespace MarkRSSReader {
             gridViewBar.Visibility = Visibility.Collapsed;
             gridEditFeedBtn.Visibility = Visibility.Collapsed;
             itemGridView.SelectedItems.Clear();
+            itemListView.SelectedItems.Clear();
         }
 
         /// <summary>
@@ -114,22 +128,30 @@ namespace MarkRSSReader {
         }
 
         private Popup saveFeedPagePop = null;
+        private SaveFeedPage saveFeedPage = null;
 
         private void initSaveFeedView(bool isEdit = false) {
-            if (saveFeedPagePop == null) {
+            if (saveFeedPagePop == null || saveFeedPage == null) {
                 // 初始化弹出界面
-                SaveFeedPage saveFeedPage = new SaveFeedPage();
+                saveFeedPage = new SaveFeedPage();
                 saveFeedPage.SizeChanged += new SizeChangedEventHandler(SaveFeedPage_SizeChanged);
-                saveFeedPage.Width = Window.Current.Content.RenderSize.Width;
                 saveFeedPagePop = new Popup();
                 saveFeedPagePop.Child = saveFeedPage;
                 saveFeedPagePop.Opened += new EventHandler<object>(saveFeedPage.ParentPopup_Opened);
             }
+            if (ApplicationView.Value == ApplicationViewState.Snapped) {
+                saveFeedPage.Height = 150;
+            }
+            saveFeedPage.Width = Window.Current.Content.RenderSize.Width;
 
             Feed editingFeed = null;
             if (isEdit) {
                 // 获取要编辑的Feed的数据
-                editingFeed = (Feed)itemGridView.SelectedItem;
+                if (itemGridView.Visibility == Visibility.Visible) {
+                    editingFeed = (Feed)itemGridView.SelectedItem;
+                } else {
+                    editingFeed = (Feed)itemListView.SelectedItem;
+                }
             }
 
             ((SaveFeedPage)saveFeedPagePop.Child).editingFeed = editingFeed;
@@ -144,7 +166,7 @@ namespace MarkRSSReader {
             Binding popBinding = new Binding();
             popBinding.Mode = BindingMode.OneWay;
             popBinding.Source = Window.Current.Content.RenderSize.Height -
-                (AppBar1.IsOpen ? AppBar1.RenderSize.Height : 0) - saveFeedPage.RenderSize.Height;
+                (AppBar1.IsOpen ? AppBar1.ActualHeight : 0) - saveFeedPage.ActualHeight;
             pop.SetBinding(Popup.VerticalOffsetProperty, popBinding);
         }
 
@@ -153,16 +175,16 @@ namespace MarkRSSReader {
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        void DelFeedBtn_Click(object sender, RoutedEventArgs e) {
-            while (itemGridView.SelectedItems.Count > 0) {
-                Feed f = (Feed)itemGridView.SelectedItems.First();
-                var matches = FeedDataSource.getInstance().AllGroups.SelectMany((group) => group.Feeds).
-                        Where((feed) => feed.UniqueId.Equals(f.UniqueId));
-                if (matches.Count() == 1) {
-                    var feed = matches.First();
-                    var group = feed.Group;
-                    group.Feeds.Remove(feed);
-                    FeedDataSource.getInstance().delFeed(feed);
+        async void DelFeedBtn_Click(object sender, RoutedEventArgs e) {
+            if (itemGridView.Visibility == Visibility.Visible) {
+                while (itemGridView.SelectedItems.Count > 0) {
+                    Feed f = (Feed)itemGridView.SelectedItems.First();
+                    await FeedDataSource.getInstance().delFeed(f);
+                }
+            } else {
+                while (itemListView.SelectedItems.Count > 0) {
+                    Feed f = (Feed)itemListView.SelectedItems.First();
+                    await FeedDataSource.getInstance().delFeed(f);
                 }
             }
         }
@@ -182,11 +204,69 @@ namespace MarkRSSReader {
         /// <param name="sender"></param>
         /// <param name="e"></param>
         async void RefreshFeedBtn_Click(object sender, RoutedEventArgs e) {
-            foreach (Feed feed in itemGridView.SelectedItems) {
-                var matches = PreloadFeedGrid.Where((feedGrid) => ((Feed)feedGrid.DataContext).UniqueId.Equals(feed.UniqueId));
-                if (matches.Count() > 0) {
-                    Grid feedGrid = (Grid)matches.First();
-                    await loadFeedGrid(feedGrid);
+            IList<object> feedList = null;
+            if (itemGridView.Visibility == Visibility.Visible) {
+                feedList = itemGridView.SelectedItems;
+            } else {
+                feedList = itemListView.SelectedItems;
+            }
+            if (feedList != null) {
+                foreach (Feed feed in feedList) {
+                    var matches = PreloadFeedGrid.Where((feedGrid) => ((Feed)feedGrid.DataContext).UniqueId.Equals(feed.UniqueId));
+                    if (matches.Count() > 0) {
+                        Grid feedGrid = (Grid)matches.First();
+                        await loadFeedGrid(feedGrid);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 将选中的Feed中的所有文章都标记为已读
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        async void ReadFeedBtn_Click(object sender, RoutedEventArgs e) {
+            IList<object> feedList = null;
+            if (itemGridView.Visibility == Visibility.Visible) {
+                feedList = itemGridView.SelectedItems;
+            } else {
+                feedList = itemListView.SelectedItems;
+            }
+            if (feedList != null) {
+                foreach (Feed feed in feedList) {
+                    await FeedItemDatabase.getInstance().readedFeed(feed);
+
+                    var matches = PreloadFeedGrid.Where((feedGrid) => ((Feed)feedGrid.DataContext).UniqueId.Equals(feed.UniqueId));
+                    if (matches.Count() > 0) {
+                        Grid feedGrid = (Grid)matches.First();
+                        await loadFeedGrid(feedGrid);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 将选中的Feed中的所有文章都标记为未读
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        async void NoReadFeedBtn_Click(object sender, RoutedEventArgs e) {
+            IList<object> feedList = null;
+            if (itemGridView.Visibility == Visibility.Visible) {
+                feedList = itemGridView.SelectedItems;
+            } else {
+                feedList = itemListView.SelectedItems;
+            }
+            if (feedList != null) {
+                foreach (Feed feed in feedList) {
+                    await FeedItemDatabase.getInstance().noReadFeed(feed);
+
+                    var matches = PreloadFeedGrid.Where((feedGrid) => ((Feed)feedGrid.DataContext).UniqueId.Equals(feed.UniqueId));
+                    if (matches.Count() > 0) {
+                        Grid feedGrid = (Grid)matches.First();
+                        await loadFeedGrid(feedGrid);
+                    }
                 }
             }
         }
@@ -197,9 +277,9 @@ namespace MarkRSSReader {
         /// <param name="sender"></param>
         /// <param name="e"></param>
         void ItemView_ItemSelect(object sender, SelectionChangedEventArgs e) {
-            GridView gridView = (GridView)sender;
-            if (gridView.SelectedItems.Count > 0) {
-                if (gridView.SelectedItems.Count == 1) {
+            ListViewBase itemView = (ListViewBase)sender;
+            if (itemView.SelectedItems.Count > 0) {
+                if (itemView.SelectedItems.Count == 1) {
                     gridEditFeedBtn.Visibility = Visibility.Visible;
                 } else {
                     gridEditFeedBtn.Visibility = Visibility.Collapsed;
@@ -211,6 +291,15 @@ namespace MarkRSSReader {
                 pageBar.Visibility = Visibility.Visible;
                 gridViewBar.Visibility = Visibility.Collapsed;
             }
+        }
+
+        void itemView_DragItemsStarting(object sender, DragItemsStartingEventArgs e) {
+            // TODO 读取正在拖动的数据对象
+        }
+
+        void itemView_Drop(object sender, DragEventArgs e) {
+            // TODO 更改XML中的排序，drop时未触发该事件
+            //e.Data.Properties["a"] = "a";
         }
 
         async void ItemView_Loaded(object sender, RoutedEventArgs e) {
@@ -239,7 +328,7 @@ namespace MarkRSSReader {
             description.Visibility = Visibility.Collapsed;
 
             var feed = (Feed)feedGrid.DataContext;
-            await FeedDataSource.getInstance().initFeedAsync(feed);
+            await FeedDataSource.getInstance().loadFeedAsync(feed);
 
             Binding b = new Binding();
             b.Mode = BindingMode.TwoWay;
@@ -248,7 +337,9 @@ namespace MarkRSSReader {
 
             progRing.Visibility = Visibility.Collapsed;
             subTitle.Visibility = Visibility.Visible;
-            description.Visibility = Visibility.Visible;
+            if (ApplicationView.Value != ApplicationViewState.Snapped) {
+                description.Visibility = Visibility.Visible;
+            }
         }
     }
 }

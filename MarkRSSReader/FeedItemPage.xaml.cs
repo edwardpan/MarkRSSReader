@@ -38,7 +38,7 @@ namespace MarkRSSReader
         /// </param>
         /// <param name="pageState">A dictionary of state preserved by this page during an earlier
         /// session.  This will be null the first time a page is visited.</param>
-        protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
+        protected override async void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
         {
             // Allow saved page state to override the initial item to display
             if (pageState != null && pageState.ContainsKey("SelectedItem"))
@@ -47,7 +47,9 @@ namespace MarkRSSReader
             }
 
             // TODO: Create an appropriate data model for your problem domain to replace the sample data
-            var item = (FeedItem)navigationParameter;
+            FeedItem item = (FeedItem)navigationParameter;
+            item.IsRead = true;
+            await FeedItemDatabase.getInstance().readedFeedItem(item);
             this.DefaultViewModel["Feed"] = item.Feed;
             this.DefaultViewModel["Items"] = item.Feed.Items;
             this.flipView.SelectedItem = item;
@@ -63,6 +65,14 @@ namespace MarkRSSReader
         {
             var selectedItem = (FeedItem)this.flipView.SelectedItem;
             pageState["SelectedItem"] = selectedItem;
+        }
+
+        async void flipView_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            FeedItem item = (FeedItem) flipView.SelectedItem;
+            if (item != null) {
+                item.IsRead = true;
+                await FeedItemDatabase.getInstance().readedFeedItem(item);
+            }
         }
     }
 }

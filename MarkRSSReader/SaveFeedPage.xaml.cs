@@ -28,17 +28,12 @@ namespace MarkRSSReader {
         }
 
         public void ParentPopup_Opened(object sender, object e) {
-            var feedDataGroups = FeedDataSource.getInstance().AllGroups;
-            this.DefaultViewModel["Groups"] = feedDataGroups;
-            saveFeedGroupView.Visibility = Visibility.Collapsed;
             if (editingFeed == null) {
                 saveFeedTitle.Text = "";
                 saveFeedUri.Text = "";
-                saveFeedGroup.SelectedIndex = 0;
             } else {
                 saveFeedTitle.Text = editingFeed.Title;
                 saveFeedUri.Text = editingFeed.Source.ToString();
-                saveFeedGroup.SelectedItem = editingFeed.Group;
             }
         }
 
@@ -51,47 +46,6 @@ namespace MarkRSSReader {
                 _editingFeed = value;
             }
         }
-        private FeedGroup editingGroup = null;
-
-        void AddFeedGroupBtn_Click(object sender, RoutedEventArgs e) {
-            saveFeedGroupView.Visibility = Visibility.Visible;
-            addFeedGroupPopInSb.Begin();
-        }
-
-        /// <summary>
-        /// 执行分组保存操作
-        /// </summary>
-        /// <param name="send"></param>
-        /// <param name="e"></param>
-        void SaveFeedGroupOKBtn_Click(object send, RoutedEventArgs e) {
-            string title = saveFeedGroupTitle.Text;
-
-            if (title == null || title.Trim(null).Length == 0) {
-                return;
-            }
-
-            FeedGroup group = new FeedGroup();
-            if (editingGroup != null) {// 为编辑FeedGroup操作
-                group = editingGroup;
-            }
-            group.Title = title;
-            group.Description = "";
-            FeedDataSource.getInstance().saveFeedGroup(group);
-
-            // 刷新界面
-            addFeedGroupPopOutSb.Begin();
-
-            // 选择新添加的
-            saveFeedGroup.SelectedItem = group;
-        }
-
-        void SaveFeedGroupNoBtn_Click(object send, RoutedEventArgs e) {
-            addFeedGroupPopOutSb.Begin();
-        }
-
-        void AddFeedGroupViewPopOut_Completed(object sender, object args) {
-            saveFeedGroupView.Visibility = Visibility.Collapsed;
-        }
 
         /// <summary>
         /// 执行Feed保存
@@ -102,7 +56,6 @@ namespace MarkRSSReader {
             string title = saveFeedTitle.Text;
             string uri = saveFeedUri.Text;
 
-            FeedGroup group = (FeedGroup)saveFeedGroup.SelectedItem;
             if (title == null || title.Trim(null).Length == 0) {
                 title = "";
             }
@@ -117,7 +70,6 @@ namespace MarkRSSReader {
             feed.Title = title;
             feed.Source = new Uri(uri);
             feed.Background = Backgrounds.Instance.Color;
-            feed.Group = group;
             await FeedDataSource.getInstance().saveFeed(feed);
 
             // 关闭编辑界面
@@ -132,7 +84,6 @@ namespace MarkRSSReader {
         void SaveFeedNoBtn_Click(object sender, RoutedEventArgs e) {
             saveFeedTitle.Text = "";
             saveFeedUri.Text = "";
-            saveFeedGroup.SelectedItem = null;
             closePopup();
         }
 

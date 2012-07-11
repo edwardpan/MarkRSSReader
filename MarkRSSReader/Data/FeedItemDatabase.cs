@@ -71,7 +71,7 @@ namespace MarkRSSReader.Data {
         /// </summary>
         /// <param name="loadFeed"></param>
         /// <returns>读取到的文章数量</returns>
-        public int loadFeedItems(Feed loadFeed){
+        public int loadFeedItems(Feed loadFeed) {
             loadFeed.Items.Clear();
             IXmlNode database = dbDoc.SelectSingleNode("database");
             IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + loadFeed.UniqueId + "']");
@@ -111,30 +111,31 @@ namespace MarkRSSReader.Data {
             IXmlNode oldFirstItem = feedXml.FirstChild;
             foreach (FeedItem item in feedItemList) {
                 IXmlNode itemXml = feedXml.SelectSingleNode("feeditem[link='" + item.Link + "']");
-                if (itemXml == null) {
-                    itemXml = dbDoc.CreateElement("feeditem");
-
-                    IXmlNode title = dbDoc.CreateElement("title");
-                    title.InnerText = item.Title;
-                    itemXml.AppendChild(title);
-                    IXmlNode pubdate = dbDoc.CreateElement("pubdate");
-                    pubdate.InnerText = item.PubDate.ToString();
-                    itemXml.AppendChild(pubdate);
-                    IXmlNode author = dbDoc.CreateElement("author");
-                    author.InnerText = item.Author;
-                    itemXml.AppendChild(author);
-                    IXmlNode content = dbDoc.CreateElement("content");
-                    content.InnerText = item.Content;
-                    itemXml.AppendChild(content);
-                    IXmlNode link = dbDoc.CreateElement("link");
-                    link.InnerText = item.Link.ToString();
-                    itemXml.AppendChild(link);
-                    IXmlNode isread = dbDoc.CreateElement("isread");
-                    isread.InnerText = "false";
-                    itemXml.AppendChild(isread);
-
-                    feedXml.InsertBefore(itemXml, oldFirstItem);
+                if (itemXml != null) {
+                    continue;
                 }
+                itemXml = dbDoc.CreateElement("feeditem");
+
+                IXmlNode title = dbDoc.CreateElement("title");
+                title.InnerText = item.Title;
+                itemXml.AppendChild(title);
+                IXmlNode pubdate = dbDoc.CreateElement("pubdate");
+                pubdate.InnerText = item.PubDate.ToString();
+                itemXml.AppendChild(pubdate);
+                IXmlNode author = dbDoc.CreateElement("author");
+                author.InnerText = item.Author;
+                itemXml.AppendChild(author);
+                IXmlNode content = dbDoc.CreateElement("content");
+                content.InnerText = item.Content;
+                itemXml.AppendChild(content);
+                IXmlNode link = dbDoc.CreateElement("link");
+                link.InnerText = item.Link.ToString();
+                itemXml.AppendChild(link);
+                IXmlNode isread = dbDoc.CreateElement("isread");
+                isread.InnerText = "false";
+                itemXml.AppendChild(isread);
+
+                feedXml.InsertBefore(itemXml, oldFirstItem);
             }
         }
 
@@ -143,12 +144,74 @@ namespace MarkRSSReader.Data {
         /// </summary>
         /// <param name="clearFeed"></param>
         /// <returns></returns>
-        public void clearOldFeedItems(Feed clearFeed) {
+        public async Task clearOldFeedItems(Feed clearFeed) {
             IXmlNode database = dbDoc.SelectSingleNode("database");
             IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + clearFeed.UniqueId + "']");
             if (feedXml == null) return;
             database.RemoveChild(feedXml);
-            //await saveCache();
+            await saveCache();
+        }
+
+        /// <summary>
+        /// 将Feed中的所有文章标记为已读
+        /// </summary>
+        /// <param name="feed"></param>
+        public async Task readedFeed(Feed feed) {
+            IXmlNode database = dbDoc.SelectSingleNode("database");
+            IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + feed.UniqueId + "']");
+            // 找到所有未读的文章
+            XmlNodeList feeditemList = feedXml.SelectNodes("feeditem[isread='false']");
+            foreach (IXmlNode itemXml in feeditemList) {
+                readedFeedItemXml(itemXml);
+            }
+            await saveCache();
+        }
+
+        /// <summary>
+        /// 将Feed中的所有文章标记为未读
+        /// </summary>
+        /// <param name="feed"></param>
+        public async Task noReadFeed(Feed feed) {
+            IXmlNode database = dbDoc.SelectSingleNode("database");
+            IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + feed.UniqueId + "']");
+            // 找到所有已读的文章
+            XmlNodeList feeditemList = feedXml.SelectNodes("feeditem[isread='true']");
+            foreach (IXmlNode itemXml in feeditemList) {
+                noReadFeedItemXml(itemXml);
+            }
+            await saveCache();
+        }
+
+        /// <summary>
+        /// 将Feed中指定的文章标记为已读
+        /// </summary>
+        /// <param name="item"></param>
+        public async Task readedFeedItem(FeedItem item) {
+            IXmlNode database = dbDoc.SelectSingleNode("database");
+            IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + item.Feed.UniqueId + "']");
+            IXmlNode feeditemXml = feedXml.SelectSingleNode("feeditem[link='" + item.Link + "']");
+            readedFeedItemXml(feeditemXml);
+            await saveCache();
+        }
+
+        /// <summary>
+        /// 将Feed中指定的文章标记为未读
+        /// </summary>
+        /// <param name="item"></param>
+        public async Task noReadFeedItem(FeedItem item) {
+            IXmlNode database = dbDoc.SelectSingleNode("database");
+            IXmlNode feedXml = database.SelectSingleNode("feed[uniqueId='" + item.Feed.UniqueId + "']");
+            IXmlNode feeditemXml = feedXml.SelectSingleNode("feeditem[link='" + item.Link + "']");
+            noReadFeedItemXml(feeditemXml);
+            await saveCache();
+        }
+
+        private void readedFeedItemXml(IXmlNode itemXml) {
+            itemXml.SelectSingleNode("isread").InnerText = "true";
+        }
+
+        private void noReadFeedItemXml(IXmlNode itemXml) {
+            itemXml.SelectSingleNode("isread").InnerText = "false";
         }
     }
 }

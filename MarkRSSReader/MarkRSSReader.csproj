@@ -115,15 +115,11 @@
       <DependentUpon>SaveFeedPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Data\Backgrounds.cs" />
-    <Compile Include="Data\FeedGroup.cs" />
     <Compile Include="Data\Feed.cs" />
     <Compile Include="Data\FeedItem.cs" />
     <Compile Include="Data\AbstractFeed.cs" />
-    <Compile Include="GroupedFeedsPage.xaml.cs">
-      <DependentUpon>GroupedFeedsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="GroupPage.xaml.cs">
-      <DependentUpon>GroupPage.xaml</DependentUpon>
+    <Compile Include="AllFeedsPage.xaml.cs">
+      <DependentUpon>AllFeedsPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="FeedPage.xaml.cs">
       <DependentUpon>FeedPage.xaml</DependentUpon>
@@ -185,11 +181,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="GroupedFeedsPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="GroupPage.xaml">
+    <Page Include="AllFeedsPage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

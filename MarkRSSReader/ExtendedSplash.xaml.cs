@@ -54,7 +54,7 @@ namespace MarkRSSReader
             // 初始化
             await FeedItemDatabase.getInstance().init();
             await FeedDataSource.getInstance().init();
-            Frame.Navigate(typeof(GroupedFeedsPage), this);
+            Frame.Navigate(typeof(AllFeedsPage), this);
         }
 
         // Position the extended splash screen image in the same location as the system splash screen image.

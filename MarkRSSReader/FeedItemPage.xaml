@@ -56,7 +56,8 @@
             TabIndex="1"
             Grid.Row="1"
             Margin="0,-3,0,0"
-            ItemsSource="{Binding Source={StaticResource itemsViewSource}}">
+            ItemsSource="{Binding Source={StaticResource itemsViewSource}}"
+            SelectionChanged="flipView_SelectionChanged">
 
             <FlipView.ItemTemplate>
                 <DataTemplate>

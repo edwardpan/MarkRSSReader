@@ -15,9 +15,8 @@ namespace MarkRSSReader.Data {
         public string Background { get; set; }
 
         public Feed() { }
-        public Feed(String uniqueId, String title, String subtitle, String imagePath, String description, FeedGroup group)
+        public Feed(String uniqueId, String title, String subtitle, String imagePath, String description)
             : base(uniqueId, title, subtitle, imagePath, description) {
-            this._group = group;
         }
 
         private ObservableCollection<FeedItem> _items = new ObservableCollection<FeedItem>();
@@ -35,12 +34,6 @@ namespace MarkRSSReader.Data {
             // A maximum of 12 items are displayed because it results in filled grid columns
             // whether there are 1, 2, 3, 4, or 6 rows displayed
             get { return this._items.Take(12); }
-        }
-
-        private FeedGroup _group;
-        public FeedGroup Group {
-            get { return this._group; }
-            set { this.SetProperty(ref this._group, value); }
         }
     }
 }

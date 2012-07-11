@@ -20,6 +20,33 @@
             Source="{Binding Items}"/>
     </Page.Resources>
 
+    <Page.BottomAppBar>
+        <AppBar x:Name="AppBar1" Padding="0,0,0,0" Background="{StaticResource ApplicationThemeColor}" Opened="BottomAppBar_Opened">
+            <StackPanel Orientation="Vertical">
+                <Grid x:Name="pageBar">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button x:Name="ReadFeedBtn" Click="ReadFeedBtn_Click"
+                            Style="{StaticResource MarkReadedAppBarButtonStyle}" AutomationProperties.Name="全部标记为已读"/>
+                        <Button x:Name="NoReadFeedBtn" Click="NoReadFeedBtn_Click"
+                            Style="{StaticResource MarkNoReadAppBarButtonStyle}" AutomationProperties.Name="全部标记为未读"/>
+                    </StackPanel>
+                    <Button Click="RefreshBtn_Click" HorizontalAlignment="Right" 
+                            Style="{StaticResource RefreshAppBarButtonStyle}"/>
+                </Grid>
+                <Grid x:Name="gridViewBar" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button x:Name="gridReadFeedBtn" Click="ReadFeedItemBtn_Click"
+                            Style="{StaticResource MarkReadedAppBarButtonStyle}"/>
+                        <Button x:Name="gridNoReadFeedBtn" Click="NoReadFeedItemBtn_Click"
+                            Style="{StaticResource MarkNoReadAppBarButtonStyle}"/>
+                    </StackPanel>
+                    <Button Click="ClearSelectBtn_Click" HorizontalAlignment="Right" AutomationProperties.Name="清除选择"
+                            Style="{StaticResource RemoveAppBarButtonStyle}"/>
+                </Grid>
+            </StackPanel>
+        </AppBar>
+    </Page.BottomAppBar>
+
     <!--
         此网格用作定义以下两行的页的根面板:
         * 第 0 行包含后退按钮和页标题
@@ -35,7 +62,7 @@
         </Grid.RowDefinitions>
 
         <!-- 后退按钮和页标题-->
-        <Grid>
+        <Grid x:Name="titleGrid">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -53,11 +80,22 @@
             Margin="0,-3,0,0"
             Padding="116,0,40,46"
             ItemsSource="{Binding Source={StaticResource itemsViewSource}}"
-            ItemTemplate="{StaticResource Standard500xAutoItemTemplate}"
-            SelectionMode="None"
+            SelectionMode="Multiple"
             IsItemClickEnabled="True"
-            ItemClick="ItemView_ItemClick">
-            
+            ItemClick="ItemView_ItemClick"
+            SelectionChanged="ItemView_ItemSelect">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid VerticalAlignment="Top" Width="300" Height="250" Loaded="ItemView_Loaded">
+                        <StackPanel Orientation="Vertical" VerticalAlignment="Top" Margin="15,15,15,15">
+                            <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
+                                       Style="{StaticResource TitleTextStyle}" Margin="0,0,0,20"/>
+                            <WebView x:Name="htmlContent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                                     Margin="15,0,15,10"/>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
         </GridView>
 
         <!-- 垂直滚动列表仅在对齐后使用-->
@@ -74,7 +112,7 @@
             SelectionMode="None"
             IsItemClickEnabled="True"
             ItemClick="ItemView_ItemClick">
-            
+
         </ListView>
 
         <VisualStateManager.VisualStateGroups>
