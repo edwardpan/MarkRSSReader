@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/2010/manifest">
-  <Identity Name="f92315a8-3233-4331-a00e-0c48070aebbf" Publisher="CN=Edward" Version="1.0.0.0" />
+  <Identity Name="f92315a8-3233-4331-a00e-0c48070aebbf" Publisher="CN=Edward" Version="1.0.0.1" />
   <Properties>
     <DisplayName>痕迹阅读器</DisplayName>
     <PublisherDisplayName>Edward</PublisherDisplayName>
